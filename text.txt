@@ -1,0 +1,14 @@
+mytheme: {
+            "primary": "#002B5B",      
+            "secondary": "#1A5F7A",     
+            "accent": "#159895",       
+            "neutral": "#EEEEEE",       
+            "background": "#57C5B6",
+            "base-200" : '#57C5B6',    
+            "info": "#3abff8",        
+            "success": "#36d399",       
+            "warning": "#fbbd23",        
+            "error": "#f87272",
+        },
+
+        bg-gradient-to-b  from-teal-100 to-teal-600

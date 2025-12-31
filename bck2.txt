@@ -1,0 +1,333 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+class HomeController extends Controller
+{
+   public function index()
+   {
+      return Inertia::render('Dashboard');
+   }
+   public function getDashboard(Request $r)
+   {
+      $jobcls = $r->jobcls;
+      $year = $r->year;
+      $plant = $r->plant;
+      $qrt = $r->qrt;
+      DB::connection()->enableQueryLog();
+      $dashboard = DB::select("SELECT  SKILL_NM NM,
+      NVL (TO_CHAR (A / EMP * 100, 'FM99990.00'), 0) || '%' A_PER,
+      NVL (A, 0) A_TOT,
+      NVL (TO_CHAR (B / EMP * 100, 'FM99990.00'), 0) || '%' B_PER,
+      NVL (B, 0) B_TOT,
+      NVL (TO_CHAR (C / EMP * 100, 'FM99990.00'), 0) || '%' C_PER,
+      NVL (C, 0) C_TOT,
+      NVL (TO_CHAR (D / EMP * 100, 'FM99990.00'), 0) || '%' D_PER,
+      NVL (D, 0) D_TOT,
+      (NVL (A, 0) + NVL (B, 0) + NVL (C, 0)) ACC,
+         NVL (
+            TO_CHAR (NVL (A, 0) + NVL (B, 0) + NVL (C, 0) / EMP * 100,
+                     'FM99990.00'),
+            0)
+      || '%'
+         TOTAL_PERSEN,
+         EMP
+         FROM (SELECT SERVICE_ID,
+                     LANG_CD,
+                     YEAR,
+                     COMPANY,
+                     ROUND_CD,
+                     PROCESS_CD,
+                     PROCESS_NM,
+                     SKILL_CD,
+                     SKILL_NM,
+                     CASE
+                        WHEN ACTUAL_SCORE = '100' THEN 'A'
+                        WHEN ACTUAL_SCORE = '075' THEN 'B'
+                        WHEN ACTUAL_SCORE = '050' THEN 'C'
+                        WHEN ACTUAL_SCORE = '025' THEN 'D'
+                     END
+                        ACTUAL_SC_TEXT,
+                     SUM (1)
+                        OVER (PARTITION BY A.SERVICE_ID,
+                                             A.LANG_CD,
+                                             A.COMPANY,
+                                             YEAR,
+                                             ROUND_CD,
+                                             PROCESS_CD,
+                                             ACTUAL_SCORE,
+                                             SKILL_CD
+                              ORDER BY PROCESS_CD)
+                        NM,
+                     SUM (1)
+                        OVER (PARTITION BY A.SERVICE_ID,
+                                             A.LANG_CD,
+                                             A.COMPANY,
+                                             YEAR,
+                                             ROUND_CD,
+                                             PROCESS_CD)
+                        EMP,
+                     ROW_NUMBER ()
+                        OVER (PARTITION BY A.SERVICE_ID,
+                                             A.LANG_CD,
+                                             A.COMPANY,
+                                             YEAR,
+                                             ROUND_CD,
+                                             PROCESS_CD,
+                                             ACTUAL_SCORE,
+                                             SKILL_CD
+                              ORDER BY PROCESS_CD)
+                        RN
+                  FROM PW_HR_MSKILL_V A,
+                     (SELECT EMPID,
+                              ORG_LVL11_NM,
+                              JOBCLS
+                        FROM PW_HR_EMPLOYEES_V
+                        ) B
+               WHERE     A.EMPID = B.EMPID
+                     AND LANG_CD = 'ENG'
+                     AND ('$plant' IS NULL OR ORG_LVL11_NM = '$plant')
+                     AND ('$jobcls' IS NULL OR PROCESS_CD = '$jobcls')
+                     AND ('$year' IS NULL OR YEAR = '$year')
+                     AND ('$qrt' IS NULL OR ROUND_CD = '$qrt'))
+               PIVOT
+                  (SUM (NM)
+                  FOR ACTUAL_SC_TEXT
+                  IN ('A' AS A, 'B' AS B, 'C' AS C, 'D' AS D)) A
+         WHERE RN = 1 
+         ORDER BY SKILL_NM");
+
+                     $queries = DB::getQueryLog();
+                     // dd($queries);
+      return ['item' => $dashboard];
+   }
+   public function getYear()
+   {
+      DB::connection()->enableQueryLog();
+      $year = DB::select(" SELECT DISTINCT YEAR ID, YEAR TEXT FROM PW_HR_MSKILL_T03");
+      $queries = DB::getQueryLog();
+      // dd($queries);
+      return $year;
+   }
+
+   public function getPlant()
+   {
+      DB::connection()->enableQueryLog();
+
+      $plants = DB::select("SELECT DISTINCT PLANT_LOCATION AS ID,
+                PW_ZZ_UTIL_PG.get_code_nm_fn ('PLANT_LOCATION',
+                                              PLANT_LOCATION,
+                                              '',
+                                              '',
+                                              SYSDATE,
+                                              'ENG')
+                   TEXT
+                    FROM PW_HA_DEPT_T D
+                    WHERE     D.SERVICE_ID = 'TT'
+                        AND D.DATASET =
+                                (SELECT pw_zz_util_pg.get_dataset_fn ('TT', 'TT', 'DEPT')
+                                    FROM DUAL)
+                        AND D.PLANT_LOCATION IS NOT NULL
+                        AND D.PLANT_LOCATION IN ('A','B','C','D','E','F','G')
+                        AND D.EFFDT =
+                                (SELECT MAX (EFFDT)
+                                    FROM PW_HA_DEPT_T
+                                    WHERE     SERVICE_ID = D.SERVICE_ID
+                                        AND DATASET = D.DATASET
+                                        AND DEPT = D.DEPT
+                                        AND EFFDT <= SYSDATE)
+                    ORDER BY ID ASC");
+                    $queries = DB::getQueryLog();
+                  //   dd($queries);
+      return $plants;
+   }
+   public function getLine(Request $r)
+   {
+      $dept = $r->id;
+      DB::connection()->enableQueryLog();
+
+      $lines = DB::select("SELECT T.* FROM(
+         SELECT DISTINCT DPR_DEPT AS ID,
+         CASE WHEN DPR_DEPT = 'ASS' THEN 'ASSEMBLY'
+                  WHEN DPR_DEPT = 'CUT' THEN 'CUTTING'
+                  WHEN DPR_DEPT = 'PRF' THEN 'PREFIT'
+                  WHEN DPR_DEPT = 'STF' THEN 'STOCKFIT'
+                  WHEN DPR_DEPT = 'STT' THEN 'STITCHING'
+                  ELSE DPR_DEPT
+              END AS TEXT
+             FROM PW_HA_DEPT_T D
+             WHERE D.SERVICE_ID ='TT'
+              AND (CASE WHEN D.PLANT_LOCATION = '$dept' THEN 1 WHEN 1=1 THEN 2 END = CASE WHEN LENGTH('$dept') >= 1 THEN 1 ELSE 2 END)
+              AND D.DPR_DEPT in ('CUT', 'ASS', 'PRF', 'STF', 'STT')
+              AND D.DATASET = (SELECT PW_ZZ_UTIL_PG.GET_DATASET_FN('TT','TT','DEPT') FROM DUAL)
+              AND D.PLANT_LOCATION IS NOT NULL
+              AND D.EFFDT = (SELECT MAX(EFFDT) FROM PW_HA_DEPT_T 
+                              WHERE SERVICE_ID = D.SERVICE_ID
+                                AND DATASET = D.DATASET
+                                AND DEPT = D.DEPT
+                                AND EFFDT <= SYSDATE)) T
+         ORDER BY ID ASC");
+         $queries = DB::getQueryLog();
+         // dd($queries);
+      return $lines;
+   }
+
+   public function getPart(Request $r)
+   {
+      $dept = $r->dept;
+      $line = $r->line;
+      $parts = DB::select("SELECT T.*
+      FROM (SELECT DISTINCT DPR_DEPT ID, DPR_DEPT TEXT
+              FROM PW_HA_DEPT_T D
+             WHERE     D.SERVICE_ID = 'TT'
+             AND (CASE WHEN D.PLANT_LOCATION = '$dept' THEN 1 WHEN 1 = 1 THEN 2 END = CASE WHEN LENGTH ('$dept') >= 1 THEN 1 ELSE 2 END)
+            AND (CASE WHEN  D.DPR_DEPT = '$line' THEN 1 WHEN 1 = 1 THEN 2 END = CASE WHEN LENGTH ('$line') >= 1 THEN 1 ELSE 2 END)
+            AND D.DPR_DEPT in ('CUT', 'ASS', 'PRF', 'STF', 'STT')
+            AND D.DATASET =
+                  (SELECT PW_ZZ_UTIL_PG.GET_DATASET_FN ('TT',
+                                                         'TT',
+                                                         'DEPT')
+                     FROM DUAL)
+            AND D.PLANT_LOCATION IS NOT NULL
+            AND D.EFFDT =
+                  (SELECT MAX (EFFDT)
+                     FROM PW_HA_DEPT_T
+                     WHERE     SERVICE_ID = D.SERVICE_ID
+                           AND DATASET = D.DATASET
+                           AND DEPT = D.DEPT
+                           AND EFFDT <= SYSDATE)) T
+            ORDER BY ID ASC");
+            $queries = DB::getQueryLog();
+            dd($queries);
+
+      return $parts;
+   }
+
+   public function getProc(Request $r)
+   {
+      $dept = $r->dept;
+      $line = $r->line;
+      $part = $r->part;
+      DB::connection()->enableQueryLog();
+      $proc = DB::select("SELECT DISTINCT A.JOBCD ID  ,
+      PW_ZZ_UTIL_PG.GET_JOBCD_NM_FN (A.SERVICE_ID,  
+                                     A.DATASET,  
+                                     A.JOBCD,  
+                                     A.EFFDT,  
+                                     'ENG')  
+                           AS text  
+                  FROM PW_HA_JOBCD_T A  
+                        JOIN PW_HR_MSKILL_T03 B  
+                           ON (    A.SERVICE_ID = B.SERVICE_ID  
+                              AND A.JOBCLS = B.PROCESS_CD  
+                              AND A.JOBCD = B.SKILL_CD  
+                              AND B.COMPANY = 'TT'  
+                              )  
+                        JOIN PW_HR_EMPLOYEES_V C ON (B.EMPID = C.EMPID)  
+                        JOIN  
+                        (SELECT DEPT  
+                           FROM PW_HA_DEPT_T A  
+                        WHERE     ('$dept' is null or PLANT_LOCATION = '$dept')  
+                              AND ('$part' is null or DPR_DEPT = '$part')  
+                              AND EFFDT = (SELECT MAX (B.EFFDT)  
+                                       FROM PW_HA_DEPT_T B  
+                                       WHERE A.DEPT = B.DEPT)  
+                              AND EFF_STATUS = 'A') D  
+                           ON C.DEPT = D.DEPT  
+                  WHERE     A.SERVICE_ID = 'TT'  
+                        AND A.DATASET = PW_ZZ_UTIL_PG.GET_DATASET_FN ('TT', 'TT', 'JOBCD')  
+                        AND A.EFF_STATUS = 'A'  
+                        AND A.EFFDT =  
+                              (SELECT MAX (A1.EFFDT)  
+                                 FROM PW_HA_JOBCD_T A1  
+                                 WHERE     A1.SERVICE_ID = A.SERVICE_ID  
+                                       AND A1.DATASET = A.DATASET  
+                                       AND A1.JOBCD = A.JOBCD  
+                                       AND A1.EFFDT <= SYSDATE  
+                                       AND A1.MULTI_SKILL_FLAG IS NOT NULL)                                  
+                  ORDER BY text asc");
+
+                           
+                           $queries = DB::getQueryLog();
+                           // dd($queries);
+      return $proc;
+   }
+   public function getEmpSkill(Request $r)
+   {
+      $dept = $r->dept;
+      $line = $r->line;
+      $part = $r->part;
+      $proc = $r->proc;
+      $value = $r->value;
+      $year = $r->year;
+      $qrt = $r->qrt;
+      DB::connection()->enableQueryLog();
+      $user = DB::select("SELECT DISTINCT
+      B.SERVICE_ID AS SERVICE_ID,
+      B.COMPANY AS COMPANY,
+      B.YEAR AS YEAR,
+      B.EMPID AS EMPID,
+      C.NAME,
+      C.JOB_POSITION_NM,
+      PW_HA_UTIL_PG.FN_GET_PLANT (C.COMPANY, C.DEPT, SYSDATE) PLANT,
+      PW_HA_UTIL_PG.FN_GET_ERPDEPT_NM (C.SERVICE_ID,
+                                       C.COMPANY,
+                                       C.DEPT,
+                                       SYSDATE)
+         VSM_LINE,
+      PW_ZZ_UTIL_PG.GET_JOBCD_NM_FN (A.SERVICE_ID,
+                                     A.DATASET,
+                                     A.JOBCD,
+                                     A.EFFDT,
+                                     'ENG')
+         AS PROCESS_NM,
+      CASE
+         WHEN ACTUAL_SCORE = '100' THEN 'A'
+         WHEN ACTUAL_SCORE = '075' THEN 'B'
+         WHEN ACTUAL_SCORE = '050' THEN 'C'
+         WHEN ACTUAL_SCORE = '025' THEN 'D'
+      END
+         AS MULTI_SKILL_FLAG
+ FROM PW_HA_JOBCD_T A
+      JOIN PW_HR_MSKILL_T03 B
+         ON (    A.SERVICE_ID = B.SERVICE_ID
+             AND A.JOBCLS = B.PROCESS_CD
+             AND A.JOBCD = B.SKILL_CD
+             AND B.COMPANY = 'TT'
+             AND (CASE WHEN B.YEAR = '$year' THEN 1 WHEN B.YEAR = '2023' THEN 2 END =
+                     CASE WHEN LENGTH ('$year') >= 1 THEN 1 ELSE 2 END))
+      JOIN PW_HR_EMPLOYEES_V C ON (B.EMPID = C.EMPID)
+      JOIN
+      (SELECT DEPT
+         FROM PW_HA_DEPT_T A
+        WHERE     ('$dept' is null or PLANT_LOCATION = '$dept')
+              AND ('$part' is null or DPR_DEPT = '$part')
+              AND EFFDT = (SELECT MAX (B.EFFDT)
+                     FROM PW_HA_DEPT_T B
+                     WHERE A.DEPT = B.DEPT)
+              AND EFF_STATUS = 'A') D
+         ON C.DEPT = D.DEPT
+WHERE     A.SERVICE_ID = 'TT'
+      AND A.DATASET = PW_ZZ_UTIL_PG.GET_DATASET_FN ('TT', 'TT', 'JOBCD')
+      AND  ('$proc' is null or A.JOBCD = '$proc') 
+       AND A.EFF_STATUS = 'A'
+       AND ('$value' is null or ACTUAL_SCORE = '$value')
+      AND ('$qrt' is null or ROUND_CD = '$qrt')
+       AND A.EFFDT =
+              (SELECT MAX (A1.EFFDT)
+                 FROM PW_HA_JOBCD_T A1
+                WHERE     A1.SERVICE_ID = A.SERVICE_ID
+                      AND A1.DATASET = A.DATASET
+                      AND A1.JOBCD = A.JOBCD
+                      AND A1.EFFDT <= SYSDATE
+                      AND A1.MULTI_SKILL_FLAG IS NOT NULL)
+                      ORDER BY PLANT, VSM_LINE, NAME, EMPID, PROCESS_NM, MULTI_SKILL_FLAG");
+                        $queries = DB::getQueryLog();
+                        dd($queries);
+      return $user;
+   }
+}

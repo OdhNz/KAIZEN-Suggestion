@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers\OLD;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class ListReservationDomController extends Controller
+{
+    public function rsvListRsvDomFetch(Request $r)
+    {
+        $company = $r->company;
+        $login_id = $r->login_id;
+        $repair_type = $r->repair_type;
+        $bgn = $r->bgn;
+        $end = $r->end;
+        try {
+            $SQL = "  SELECT a.company,
+                            a.rsv_id,
+                            a.rsv_cd,
+                            a.cd_nm,
+                            a.form_id,
+                            to_char(a.tl_date, 'yyyy-mm-dd') as tl_date,
+                            a.status,
+                            DECODE (a.status,
+                                    'N', 'NEW',
+                                    'P', 'ON GOING',
+                                    'S', 'COMPLETE',
+                                    'C', 'COMPLETE')
+                                AS status_nm,
+                            a.rsv_user,
+                            p.name,
+                            p.org_lvl10_nm as dept_nm,
+                            a.remark,
+                            b.loc_grp_cd,
+                            b.loc_grp_id,
+                            b.loc_grp_nm,
+                            b.loc_cd,
+                            b.loc_id,
+                            b.loc_nm,
+                            c.repair_grp_cd,
+                            c.repair_grp_id,
+                            c.repair_grp_nm,
+                            c.repair_id,
+                            c.repair_nm
+                        FROM PW_HR_EMPLOYEES_IFACE_MV@DL_TTAMESTOTTHCMIF p 
+                            join GA_RSV_RESERVATION_T a on (p.company = a.company and p.empid = a.rsv_user)
+                                JOIN GA_RSV_LOCATION_V b
+                                    ON (    a.company = b.company
+                                        AND a.location_grp = b.loc_grp_id
+                                        AND a.location_dtl = b.loc_id)
+                                JOIN GA_RSV_REPAIR_V c
+                                    ON (    a.company = c.company
+                                        AND a.repair_grp = c.repair_grp_id
+                                        AND a.repair_type = c.repair_id)
+                        WHERE a.company = '$company' 
+                        and a.rsv_id = (SELECT MAX (rsv_id)
+                            FROM GA_RSV_RESERVATION_T b
+                            WHERE  a.company = b.company AND a.rsv_cd = b.rsv_cd) 
+                        and ('$repair_type' = 'ALL' OR b.loc_category = '$repair_type')
+                        AND A.TL_DATE BETWEEN TO_DATE ('$bgn', 'YYYY-MM-DD')
+                         AND TO_DATE ('$end', 'YYYY-MM-DD')
+                        ORDER BY a.rsv_id desc ";
+            $SQLEX = DB::select($SQL);
+            return $SQLEX;
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+}

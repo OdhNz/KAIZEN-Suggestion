@@ -1,0 +1,77 @@
+{
+  "resources/assets/bgSvg.svg": {
+    "file": "assets/bgSvg-Bj8rLPqi.svg",
+    "src": "resources/assets/bgSvg.svg"
+  },
+  "resources/assets/cat1.jpg": {
+    "file": "assets/cat1-MWzXE89C.jpg",
+    "src": "resources/assets/cat1.jpg"
+  },
+  "resources/assets/cat2.jpg": {
+    "file": "assets/cat2-N51Vwvpw.jpg",
+    "src": "resources/assets/cat2.jpg"
+  },
+  "resources/assets/costred.png": {
+    "file": "assets/costred-E6kZG_y3.png",
+    "src": "resources/assets/costred.png"
+  },
+  "resources/assets/environment.png": {
+    "file": "assets/environment-BVp5yU9B.png",
+    "src": "resources/assets/environment.png"
+  },
+  "resources/assets/error-404.png": {
+    "file": "assets/error-404-DXp5SGmb.png",
+    "src": "resources/assets/error-404.png"
+  },
+  "resources/assets/icon.png": {
+    "file": "assets/icon-Bs2Z1Xfv.png",
+    "src": "resources/assets/icon.png"
+  },
+  "resources/assets/load.png": {
+    "file": "assets/load-CFlYPy93.png",
+    "src": "resources/assets/load.png"
+  },
+  "resources/assets/logo.png": {
+    "file": "assets/logo-DuXCqtws.png",
+    "src": "resources/assets/logo.png"
+  },
+  "resources/assets/productivity.png": {
+    "file": "assets/productivity-DTthrHZZ.png",
+    "src": "resources/assets/productivity.png"
+  },
+  "resources/assets/quality.png": {
+    "file": "assets/quality-CHbo3yS_.png",
+    "src": "resources/assets/quality.png"
+  },
+  "resources/assets/safety.png": {
+    "file": "assets/safety-Cbc_EOjd.png",
+    "src": "resources/assets/safety.png"
+  },
+  "resources/assets/workplace.png": {
+    "file": "assets/workplace-Db_rhGwj.png",
+    "src": "resources/assets/workplace.png"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-FxowoAtc.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/app.jsx": {
+    "file": "assets/app-DoU52B6U.js",
+    "name": "app",
+    "src": "resources/js/app.jsx",
+    "isEntry": true,
+    "assets": [
+      "assets/error-404-DXp5SGmb.png",
+      "assets/cat1-MWzXE89C.jpg",
+      "assets/cat2-N51Vwvpw.jpg",
+      "assets/logo-DuXCqtws.png",
+      "assets/icon-Bs2Z1Xfv.png",
+      "assets/bgSvg-Bj8rLPqi.svg"
+    ]
+  }
+}

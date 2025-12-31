@@ -1,0 +1,73 @@
+   import { create } from 'zustand';
+   import { jwtDecode } from "jwt-decode";
+   import axios from "axios";
+   import kaizenSys from './kaizenSys';
+   import kaizenFormStore from './kaizenFormStore';
+   import kaizenListStore from './kaizenListStore';
+   import kaizenMasterCategory from './kaizenMasterCategory';
+import kaizenDashboardStore from './kaizenDashboardStore';
+
+   const baseUrl = window.location.origin + window.location.pathname.replace(/\//g, '');
+   const pathName = window.location.pathname;
+   axios.defaults.baseURL = window.location.host == '172.70.10.166' ? '/web_kaizen/public' : ''
+
+   const useStore = create((set, get) => ({
+       baseUrl : baseUrl,
+       pathName : pathName,
+       user: localStorage.getItem("token") ? jwtDecode(JSON.parse(localStorage.getItem("token"))) : null,
+       token: localStorage.getItem("token") ? JSON.parse(localStorage.getItem("token")) : null,
+       company: null,
+       loading: false,
+       firstLoad: true,
+       path: window.location.host == '172.70.10.166' ? '/web_kaizen/public' : '',
+       pathFile: window.location.host == '172.70.10.166' ? '/web_kaizen/public/' : '',
+       errorStatusText: "",
+       toggleModal: (res, setRes) => {return setRes(!res)},
+       toggleLoad: (res) => {set({ firstLoad: !res})},
+       setUser: (user) => set({ user }),
+       fetchDataAxios : async (res) => {
+                        set({errorStatusText : ""})
+                        return await res.catch(err => 
+                           {
+                              set({errorStatusText : err.response.statusText})
+                           })
+                        },
+       localData: async (key, link, params) => {
+                        try {
+                           const item = localStorage.getItem(key);
+                           const localData = JSON.parse(item)
+                           const date = new Date();
+                           if(item != null && localData.expiry > date.getTime()) {
+                              return localData.data
+                           } else {
+                              localStorage.removeItem(key);
+                              const {data} = await axios.get(link, {...params});
+                              const expiry = date.getTime() + 1000 * 60 * 60; 
+                              const setItem = { data, expiry };
+                              localStorage.setItem(key, JSON.stringify(setItem));
+                              return data
+                        } 
+                        } catch (error) {
+                           console.log(error)
+                        }
+                        
+                        
+                     },
+       login: (item) => {
+                           localStorage.setItem("token", JSON.stringify(item.token));
+                           item.company && localStorage.setItem("company", JSON.stringify(item.company));
+                           set({ token: item.token, user: jwtDecode(item.token), company : item.company});
+                        },
+       logout: async() => {
+                        await axios.get("/api/logout");
+                        localStorage.clear()
+                        set({ token: null, user: null, company: null, firstLoad: true });
+                     },
+                     ...kaizenSys(set,get),
+                     ...kaizenFormStore(set,get),
+                     ...kaizenListStore(set,get),
+                     ...kaizenMasterCategory(set,get),
+                     ...kaizenDashboardStore(set,get), 
+   }));
+
+   export default useStore;

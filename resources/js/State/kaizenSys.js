@@ -1,0 +1,43 @@
+import axios from "axios";
+import workplace from "../../assets/workplace.png";
+import safety from "../../assets/safety.png";
+import quality from "../../assets/quality.png";
+import productivity from "../../assets/productivity.png";
+import environment from "../../assets/environment.png";
+import costred from "../../assets/costred.png";
+ const kaizenSys = (set, get) => ({
+       categoryData: async(res) => {
+            // const data = [
+            //             {id : 1, name: "Workplace", img: workplace, color: "#f79b07"},
+            //             {id : 2, name: "Environment", img: environment, color: "#059669"},
+            //             {id : 3, name: "Quality", img: quality, color: "#ffd700"},
+            //             {id : 4, name: "Cost Reduction", img: costred, color: "#0a777a"},
+            //             {id : 5, name: "Productivity", img: productivity, color: "#2563eb"},
+            //             {id : 6, name: "Safety", img: safety, color: "#dc2626"}
+            //       ];
+            // return data;
+            const param = {company : "TT", id: res}
+            const response = await  get().fetchDataAxios(axios.get("/api/fetchCategory", {params : {...param }}));
+            console.log(response)
+            return response.data;
+       },
+       fetchKaizenLocation: async(res) => {
+            const param = {}
+            const response = await  get().fetchDataAxios(axios.get('/api/fetchKaizenLocation', {params : {...param }}));
+            return response;
+       },
+       fetchKaizenFile: async (res) => {
+          const data = await  get().fetchDataAxios(axios.get("/api/fetchKaizenFile", {params : {
+               path : res.path
+          }}));
+             return data;
+       },
+       fetchDocumentDownload: async (res) => {
+         const data = await  get().fetchDataAxios(axios.get("/api/fetchDocumentDownload", {params : { path : res.path },
+                                                                   responseType: 'blob'}));
+             return data;
+       },
+   });
+
+   export default kaizenSys
+

@@ -1,0 +1,71 @@
+import { Card, Spin } from "antd";
+import React, { useEffect, useState, useRef } from "react";
+import useStore from "../../State/useStore";
+import UseLabelHeader from "../../Components/UseLabelHeader";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+const KaizenCategory = () => {
+    const { path, fetchCategoryForm, fetchDocumentDownload } = useStore();
+    const { data: catData = [], isFetching, refetch } = useQuery({
+        queryKey: ["category"],
+        queryFn: async () => {
+            return await fetchCategoryForm();
+        },
+        enabled: false,
+    });
+    const initData = async () => {
+        refetch();
+    };
+    useEffect(() => {
+        if (catData.length < 1) initData();
+    }, []);
+    return (
+        <>
+            {" "}
+            <div
+                className={`w-full h-full flex flex-col justify-center items-center`}
+            >
+                <div className="w-full h-full flex flex-col justify-start flex-nowrap md:py-14 md:justify-start lg:max-w-[1100px]">
+                    <div className="mw-full md:mb-7 lg:px-5 lg:mb-16">
+                        <UseLabelHeader
+                            title="TT KAIZEN"
+                            label="SUGGESTION"
+                            marquee="KAIZEN IS NOT BEING INVINCIBLE IT'S ABOUT
+                        BEING UNSTOPPABLE "
+                        />
+                    </div>
+                    <Spin spinning={isFetching}>
+                        <div className="grid grid-cols-2 place-items-center gap-4 md:px-6 md:gap-2">
+                            {catData.map((item, index) => {
+                                return (
+                                    <Link
+                                        key={`kaizencat${index}`}
+                                        to={`${path}/kaizen/${item.category_id}`}
+                                        className="w-full"
+                                    >
+                                        <Card className="group w-full shadow-lg  select-none  lg:max-w-[500px] hover:shadow-2xl hover:bg-gradient-to-b md:hover:bg-gradient-to-r from-white  via-white to-emerald-200 transition-all duration-300 ease-in-out">
+                                            <div className="flex flex-col justify-center items-center gap-4   md:gap-10 md:flex-row md:justify-start">
+                                                <div className="flex justify-center items-center group-hover:scale-110">
+                                                    <img
+                                                        src={item.file}
+                                                        className="h-12 md:h-12"
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-gray-600 font-bold text-center group-hover:text-sm group-hover:text-gray-800 md:text-2xl md:group-hover:text-3xl">
+                                                    {item.name}
+                                                </span>
+                                            </div>
+                                        </Card>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </Spin>
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default KaizenCategory;

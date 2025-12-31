@@ -1,0 +1,254 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class DashboardController extends Controller
+{
+    function fetchDashboardKaizen(Request $r)
+    {
+        $company = $r->company;
+        $tl_date = $r->tl_date;
+
+        try {
+            // $kaizenAll = $this->fetchDashboardKaizen(
+            //     new Request(["company" => $company, "tl_date" => $tl_date])
+            // );
+            // $kaizenCat = $this->fetchSumKaizenCategory(
+            //     new Request(["company" => $company, "tl_date" => $tl_date])
+            // );
+            // $kaizenDept = $this->fetchSumKaizenDept(
+            //     new Request(["company" => $company, "tl_date" => $tl_date])
+            // );
+            // $kaizenDay = $this->fetchSumKaizenDay(
+            //     new Request(["company" => $company, "tl_date" => $tl_date])
+            // );
+
+            $kaizenAll = DB::select(
+                "WITH base
+                        AS (  SELECT status, COUNT (1) cnt
+                                FROM KAIZEN_RSV_T
+                                WHERE tl_date BETWEEN (  TRUNC (
+                                          TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                                 'mm')
+                                        - 1,
+                                        'mm')
+                                   + 14)
+                              AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                                            'mm')
+                                   + 14)
+                            GROUP BY status),
+                        data
+                        AS (SELECT *
+                            FROM base
+                                    PIVOT
+                                    (MAX (cnt) FOR status IN ('R' AS r, 'A' AS a, 'N' AS n)))
+                    SELECT NVL (r, 0) + NVL (a, 0) + NVL (n, 0) AS tot,
+                        NVL (r, 0) AS r,
+                        NVL (a, 0) AS a,
+                        NVL (n, 0) AS n
+                    FROM data",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            $kaizenCat = DB::select(
+                "WITH base
+                                    AS (  SELECT category_id, COUNT (1) AS cnt
+                                            FROM kaizen_rsv_t
+                                            WHERE tl_date BETWEEN (  TRUNC (
+                                          TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                                 'mm')
+                                        - 1,
+                                        'mm')
+                                   + 14)
+                              AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                                            'mm')
+                                   + 14)
+                                        GROUP BY category_id)
+                                SELECT a.category_id, a.name, NVL (b.cnt, 0) cnt, a.color
+                                    FROM kaizen_category_t a
+                                        LEFT JOIN base b ON (a.category_id = b.category_id)
+                                WHERE a.status = 'A'
+                                ORDER BY category_id",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            $kaizenDept = DB::select(
+                "SELECT b.org_lvl10_nm AS TYPE, COUNT (1) VALUE
+                                    FROM kaizen_rsv_t a
+                                        JOIN PW_HR_EMPLOYEES_IFACE_MV@DL_TTAMESTOTTHCMIF b
+                                            ON (a.company = b.company AND a.empno = b.empno)
+                                WHERE tl_date BETWEEN (  TRUNC (
+                                          TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                                 'mm')
+                                        - 1,
+                                        'mm')
+                                   + 14)
+                              AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                                            'mm')
+                                   + 14)
+                                GROUP BY b.org_lvl10_nm",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            $kaizenDay = DB::select(
+                "WITH dt
+                    AS (    SELECT   TRUNC (TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'), 'mm') - 1,
+                                            'mm')
+                                    + 14
+                                    + LEVEL
+                                    - 1
+                                    AS dt
+                            FROM DUAL
+                        CONNECT BY LEVEL <=
+                                        (TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'), 'mm') + 14)
+                                    - (  TRUNC (
+                                                TRUNC (TO_DATE ( :DATE3, 'yyyymmdd'), 'mm')
+                                            - 1,
+                                            'mm')
+                                        + 13))
+                SELECT TO_CHAR (a.dt, 'mm-dd') AS letter, COUNT (b.tl_date) AS frequency
+                    FROM dt a LEFT JOIN kaizen_rsv_t b ON (a.dt = b.tl_date)
+                GROUP BY dt
+                ORDER BY dt",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date, "DATE3" => $tl_date]
+            );
+
+            return [
+                "status" => 200,
+                "ALL" => $kaizenAll,
+                "CAT" => $kaizenCat,
+                "DEPT" => $kaizenDept,
+                "DAY" => $kaizenDay,
+            ];
+        } catch (\Exeption $e) {
+            return ["status" => 400, "message" => $e];
+        }
+    }
+
+    function fetchSumKaizen(Request $r)
+    {
+        $company = $r->company;
+        $tl_date = $r->tl_date;
+        try {
+            $SQL = DB::select(
+                "WITH base
+                AS (  SELECT status, COUNT (1) cnt
+                        FROM KAIZEN_RSV_T
+                        WHERE tl_date BETWEEN (  TRUNC (
+                                    TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                            'mm')
+                                - 1,
+                                'mm')
+                            + 14)
+                        AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                                    'mm')
+                            + 14)
+                    GROUP BY status),
+                data
+                AS (SELECT *
+                    FROM base
+                            PIVOT
+                            (MAX (cnt) FOR status IN ('R' AS r, 'A' AS a, 'N' AS n)))
+            SELECT NVL (r, 0) + NVL (a, 0) + NVL (n, 0) AS tot,
+                NVL (r, 0) AS r,
+                NVL (a, 0) AS a,
+                NVL (n, 0) AS n
+            FROM data",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            return $SQL;
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+    function fetchSumKaizenCategory(Request $r)
+    {
+        $company = $r->company;
+        $tl_date = $r->tl_date;
+        try {
+            $SQL = DB::select(
+                "WITH base
+                    AS (  SELECT category_id, COUNT (1) AS cnt
+                            FROM kaizen_rsv_t
+                            WHERE tl_date BETWEEN (  TRUNC (
+                            TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                    'mm')
+                        - 1,
+                        'mm')
+                    + 14)
+                AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                            'mm')
+                    + 14)
+                        GROUP BY category_id)
+                SELECT a.category_id, a.name, NVL (b.cnt, 0) cnt, a.color
+                    FROM kaizen_category_t a
+                        LEFT JOIN base b ON (a.category_id = b.category_id)
+                WHERE a.status = 'A'
+                ORDER BY category_id",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            return $SQL;
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+    function fetchSumKaizenDept(Request $r)
+    {
+        $company = $r->company;
+        $tl_date = $r->tl_date;
+        try {
+            $SQL = DB::select(
+                "SELECT b.org_lvl10_nm AS TYPE, COUNT (1) VALUE
+                    FROM kaizen_rsv_t a
+                        JOIN PW_HR_EMPLOYEES_IFACE_MV@DL_TTAMESTOTTHCMIF b
+                            ON (a.company = b.company AND a.empno = b.empno)
+                WHERE tl_date BETWEEN (  TRUNC (
+                            TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'),
+                                    'mm')
+                        - 1,
+                        'mm')
+                    + 14)
+                AND (  TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'),
+                            'mm')
+                    + 14)
+                GROUP BY b.org_lvl10_nm",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date]
+            );
+            return $SQL;
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+    function fetchSumKaizenDay(Request $r)
+    {
+        $company = $r->company;
+        $tl_date = $r->tl_date;
+        try {
+            $SQL = DB::select(
+                "WITH dt
+                    AS (    SELECT   TRUNC (TRUNC (TO_DATE ( :DATE1, 'yyyymmdd'), 'mm') - 1,
+                                            'mm')
+                                    + 14
+                                    + LEVEL
+                                    - 1
+                                    AS dt
+                            FROM DUAL
+                        CONNECT BY LEVEL <=
+                                        (TRUNC (TO_DATE ( :DATE2, 'yyyymmdd'), 'mm') + 14)
+                                    - (  TRUNC (
+                                                TRUNC (TO_DATE ( :DATE3, 'yyyymmdd'), 'mm')
+                                            - 1,
+                                            'mm')
+                                        + 13))
+                SELECT TO_CHAR (a.dt, 'mm-dd') AS letter, COUNT (b.tl_date) AS frequency
+                    FROM dt a LEFT JOIN kaizen_rsv_t b ON (a.dt = b.tl_date)
+                GROUP BY dt
+                ORDER BY dt",
+                ["DATE1" => $tl_date, "DATE2" => $tl_date, "DATE3" => $tl_date]
+            );
+            return $SQL;
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+}

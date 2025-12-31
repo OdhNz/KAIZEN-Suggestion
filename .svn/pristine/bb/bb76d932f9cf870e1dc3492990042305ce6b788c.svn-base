@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+::selection {
+    background: rgb(241, 220, 29);
+    color: rgb(14, 68, 104);
+  }
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+     outline: none;    
+    /* border: 1px solid rgba(126, 126, 126, 0.61); */
+}
+.focus\:ring-cyan-300:focus {
+  --tw-ring-opacity: 0 !important;
+}
+
+[type='text'] {
+  box-shadow: none !important;
+}
+.fc-event {
+  cursor: pointer;
+}
+.ant-upload-list-item-container {
+    width: 100% !important;
+    height: auto !important;
+}
+ @media(max-width: 576px) {
+   .ant-picker-panels {
+     flex-direction: column;
+   }
+ }

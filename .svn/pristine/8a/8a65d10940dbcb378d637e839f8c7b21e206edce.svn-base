@@ -1,0 +1,255 @@
+import * as React from "react";
+import iconTKG from "../../assets/logo.png";
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import {
+    HiCalendar,
+    HiChartPie,
+    HiDatabase,
+    HiDocumentAdd,
+    HiDocumentText,
+    HiFolderAdd,
+    HiLibrary,
+    HiMailOpen,
+    HiOfficeBuilding,
+    HiPencilAlt,
+    HiQuestionMarkCircle,
+} from "react-icons/hi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import useStore from "../State/useStore";
+import { useEffect } from "react";
+import icon from "../../assets/icon.png";
+import { Head } from "@inertiajs/react";
+import { Layout, Menu, theme } from "antd";
+import bgSvg from "../../assets/bgSvg.svg";
+import { useState } from "react";
+import { toast } from "react-toastify";
+
+const { Header, Content, Footer, Sider } = Layout;
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            refetchOnWindowFocus: false,
+        },
+    },
+});
+
+export default function KaizenAdminLayout(props) {
+    const { path, pathFile, user, logout, errorStatusText } = useStore();
+    const urlPathNm = window.location.pathname.substring(pathFile ? 0 : 1);
+    const navigate = useNavigate();
+    document.title = "TT Kaizen";
+    const {
+        token: { colorBgContainer, borderRadiusLG },
+    } = theme.useToken();
+    const listMenu = [
+        {
+            key: `dashboard`,
+            icon: <HiChartPie />,
+            label: "Dashboard",
+            roles: ["admin", "sys"],
+        },
+        {
+            key: ``,
+            icon: <HiFolderAdd />,
+            label: "Kaizen Form",
+            roles: ["user", "admin", "sys", "exp"],
+        },
+        {
+            key: `list-kaizen`,
+            icon: <HiDocumentText />,
+            label: "Kaizen Report",
+            roles: ["admin", "sys"],
+        },
+        {
+            key: `#`,
+            icon: <HiDatabase />,
+            label: "Master Data",
+            roles: ["admin", "sys"],
+            children: [
+                {
+                    key: "master-category",
+                    label: "Kaizen Category",
+                },
+            ],
+        },
+    ];
+    const listPhoneMenu = [
+        {
+            key: `dashboard`,
+            icon: <HiChartPie />,
+            label: "Kaizen",
+            roles: ["admin", "sys"],
+        },
+        {
+            key: ``,
+            icon: <HiFolderAdd />,
+            label: "List",
+            roles: [],
+        },
+        {
+            key: `list-kaizen`,
+            icon: <HiDocumentText />,
+            label: "Admin",
+            roles: ["admin", "sys"],
+        },
+    ];
+
+    const checkMenu = (res) => {
+        const menu = res.filter((item) => item.roles.includes(user?.role));
+        return menu;
+    };
+    const onLogout = () => {
+        logout();
+        // return navigate(`${path}/login`, { replace: true });
+    };
+    const onClickMenu = (res) => {
+        return navigate(path + "/" + res.key, { replace: true });
+    };
+    useEffect(() => {
+        errorStatusText && toast.error(errorStatusText);
+    }, [errorStatusText]);
+    return (
+        <>
+            <Head>
+                <link
+                    rel="icon"
+                    type="image/svg+xml"
+                    href={`${pathFile}${icon}`}
+                />
+            </Head>
+            {/* <UseModal
+                modalStatus={firstLoad}
+                toggleModal={() => toggleLoad(firstLoad)}
+                modalName={"Announcement!📢"}
+                size={"6xl"}
+            >
+                <img
+                    src={`${pathFile}${popupLoad}`}
+                    className="w-full select-none"
+                />
+            </UseModal> */}
+            <QueryClientProvider client={queryClient}>
+                <Layout>
+                    <Header className="flex items-center justify-between px-2 bg-white md:px-6">
+                        <div>
+                            <img
+                                src={`${pathFile}${iconTKG}`}
+                                className="mr-3 h-6 sm:h-9"
+                            />
+                        </div>
+                        <div className="flex items-center justify-around gap-3">
+                            <Link className="text-2xl">
+                                <HiQuestionMarkCircle />
+                            </Link>
+                            {user ? (
+                                <Link
+                                    to={`${path}/login`}
+                                    onClick={onLogout}
+                                    className="hidden text-base text-red-700 font-bold md:block "
+                                >
+                                    {" "}
+                                    Log Out...
+                                </Link>
+                            ) : (
+                                <Link
+                                    to={`${path}/login`}
+                                    className="hidden text-base text-blue-800 font-bold md:block "
+                                >
+                                    {" "}
+                                    Log In
+                                </Link>
+                            )}
+                        </div>
+                    </Header>
+
+                    <Layout className="relative min-h-[calc(100vh-64px)]">
+                        {!user ? null : (
+                            <Sider
+                                width={250}
+                                className="hidden min-h-[calc(100vh-64px)] lg:block"
+                                style={{
+                                    background: colorBgContainer,
+                                }}
+                            >
+                                <div className="flex flex-col h-[250px] justify-center p-6 bg-emerald-950">
+                                    <img
+                                        src={`https://gw.taekwang.com/images/ProfilePhoto/${user?.empid}.jpg`}
+                                        className="rounded-full m-auto h-24 w-24"
+                                    />
+                                    <span className="text-sm text-neutral-300">
+                                        {user?.name} ({user?.role})
+                                    </span>
+                                    <span className="text-sm text-neutral-300">
+                                        {user?.position_nm}
+                                    </span>
+                                </div>
+                                <div className="h-[calc(100%-250px)] overflow-auto">
+                                    <Menu
+                                        mode="inline"
+                                        defaultSelectedKeys={["1"]}
+                                        defaultOpenKeys={["sub1"]}
+                                        style={{
+                                            borderRight: 0,
+                                            fontSize: "15px",
+                                            // fontWeight: 500,
+                                        }}
+                                        onClick={(res) => onClickMenu(res)}
+                                        items={checkMenu(listMenu)}
+                                    />
+                                </div>
+                            </Sider>
+                        )}
+                        <Layout
+                            style={{
+                                backgroundImage: `url(${path}${bgSvg})`,
+                                backgroundRepeat: "no-repeat",
+                                backgroundColor: "white",
+                            }}
+                            className="flex flex-col justify-between w-full h-[calc(100vh-64px)] overflow-auto bg-auto md:bg-cover bg-right-top"
+                        >
+                            <Layout className="h-full bg-transparent mb-10">
+                                <Content
+                                    style={{
+                                        padding: 24,
+                                        margin: 0,
+                                        minHeight: 280,
+                                        // background: colorBgContainer,
+                                        borderRadius: borderRadiusLG,
+                                    }}
+                                >
+                                    <Outlet />
+                                </Content>
+                            </Layout>
+                            {!user ? null : (
+                                <Layout className="fixed bottom-0 left-0 z-50 block w-full h-16 lg:p-5 lg:hidden">
+                                    <div className="w-full overflow-auto h-16 bg-white border-t border-gray-200">
+                                        <div className="grid h-full grid-cols-3 mx-auto w-full">
+                                            {listPhoneMenu.map((res, index) => {
+                                                return (
+                                                    <button
+                                                        key={
+                                                            "bottomnav" + index
+                                                        }
+                                                        type="button"
+                                                        className="inline-flex flex-col items-center justify-center font-medium px-5 py-1 gap-1 hover:bg-gray-59 group"
+                                                        onClick={() =>
+                                                            onClickMenu(res)
+                                                        }
+                                                    >
+                                                        <span className="text-2xl items-center text-gray-500 group-hover:text-gray-600">
+                                                            {res.icon}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </Layout>
+                            )}
+                        </Layout>
+                    </Layout>
+                </Layout>
+            </QueryClientProvider>
+        </>
+    );
+}
